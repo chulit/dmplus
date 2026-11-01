@@ -13,7 +13,7 @@ public enum DownloadEngineError: Error, Equatable {
     case rangeNotHonored
 }
 
-/// Segmented download engine: the core of UnduhQu.
+/// Segmented download engine: the core of DMPlus.
 ///
 /// - Probes the server (HEAD, falling back to a 1-byte ranged GET).
 /// - If the server accepts ranges and the size is known, splits the file

@@ -1,6 +1,6 @@
 import Foundation
 
-/// File category by extension — UnduhQu's take on IDM's IDMFType table.
+/// File category by extension — DMPlus's take on IDM's IDMFType table.
 public enum FileCategory: String, Codable, CaseIterable, Sendable {
     case video, audio, image, document, archive, application, other
 

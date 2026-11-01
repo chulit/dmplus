@@ -1,5 +1,5 @@
 import Foundation
-import UnduhKit
+import DMPlusKit
 
 /// Owns the download list, the running tasks, and persistence.
 /// Views read only what they need; all mutation happens here.
@@ -20,7 +20,7 @@ final class DownloadListModel {
     init() {
         downloadsDirectory = FileManager.default.urls(
             for: .downloadsDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("UnduhQu", isDirectory: true)
+            .appendingPathComponent("DMPlus", isDirectory: true)
         items = store.load()
     }
 

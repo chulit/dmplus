@@ -3,17 +3,17 @@
 <plist version="1.0">
 <dict>
     <key>CFBundleName</key>
-    <string>UnduhQu</string>
+    <string>DM+</string>
     <key>CFBundleDisplayName</key>
-    <string>UnduhQu</string>
+    <string>DM+</string>
     <key>CFBundleIdentifier</key>
-    <string>com.chulit.unduhqu</string>
+    <string>com.chulit.dmplus</string>
     <key>CFBundleVersion</key>
     <string>1</string>
     <key>CFBundleShortVersionString</key>
     <string>0.1.0</string>
     <key>CFBundleExecutable</key>
-    <string>UnduhQu</string>
+    <string>DMPlus</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>LSMinimumSystemVersion</key>

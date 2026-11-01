@@ -1,12 +1,12 @@
 import XCTest
-@testable import UnduhKit
+@testable import DMPlusKit
 
 final class DownloadStoreTests: XCTestCase {
     private var fileURL: URL!
 
     override func setUp() {
         fileURL = FileManager.default.temporaryDirectory
-            .appendingPathComponent("unduhqu-tests-\(UUID().uuidString).json")
+            .appendingPathComponent("dmplus-tests-\(UUID().uuidString).json")
     }
 
     override func tearDown() {

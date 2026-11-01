@@ -1,4 +1,4 @@
-# UnduhQu
+# DM+
 
 Download manager macOS original bergaya IDM — lahir dari hasil reverse
 engineering installer IDM 6.43 build 16 (peta fiturnya), bukan port kode
@@ -16,26 +16,26 @@ Tonec: semua kode di sini ditulis dari nol.
   dukungan Range; server tanpa Range jatuh ke unduhan satu aliran
   (tetap bisa resume bila Range didukung sebagian).
 - **Kategori file otomatis** dari ekstensi (video/audio/dokumen/arsip/
-  aplikasi/gambar) — versi UnduhQu dari tabel IDMFType-nya IDM.
+  aplikasi/gambar) — versi DMPlus dari tabel IDMFType-nya IDM.
 - **Jujur soal data** — ukuran total yang tidak dilaporkan server tampil
   sebagai progres tak tentu, tidak pernah dikarang.
 
-Hasil unduhan masuk ke `~/Downloads/UnduhQu/`.
+Hasil unduhan masuk ke `~/Downloads/DMPlus/`.
 
 ## Struktur
 
-- `Sources/UnduhKit` — logika murni + engine (Foundation saja, teruji unit).
-- `Sources/UnduhQuApp` — SwiftUI: daftar unduhan, tambah URL, pause/resume.
-- `Tests/UnduhKitTests` — 17 unit test (planner, kategori, format, meter,
+- `Sources/DMPlusKit` — logika murni + engine (Foundation saja, teruji unit).
+- `Sources/DMPlusApp` — SwiftUI: daftar unduhan, tambah URL, pause/resume.
+- `Tests/DMPlusKitTests` — 17 unit test (planner, kategori, format, meter,
   store, item).
 
 ## Build & tes
 
 ```sh
-swift test                 # unit test UnduhKit
-swift run UnduhQu          # jalankan app (debug)
-./scripts/build-app.sh     # dist/UnduhQu.app standalone
-open dist/UnduhQu.app
+swift test                 # unit test DMPlusKit
+swift run DMPlus          # jalankan app (debug)
+./scripts/build-app.sh     # dist/DMPlus.app standalone
+open dist/DMPlus.app
 ```
 
 Butuh macOS 14+ dan Xcode/Swift 5.9+.

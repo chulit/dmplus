@@ -1,5 +1,5 @@
 import SwiftUI
-import UnduhKit
+import DMPlusKit
 
 struct ContentView: View {
     @Bindable var model: DownloadListModel

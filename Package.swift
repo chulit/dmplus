@@ -2,15 +2,15 @@
 import PackageDescription
 
 let package = Package(
-    name: "UnduhQu",
+    name: "DMPlus",
     platforms: [.macOS(.v14)],
     products: [
-        .library(name: "UnduhKit", targets: ["UnduhKit"]),
-        .executable(name: "UnduhQu", targets: ["UnduhQuApp"]),
+        .library(name: "DMPlusKit", targets: ["DMPlusKit"]),
+        .executable(name: "DMPlus", targets: ["DMPlusApp"]),
     ],
     targets: [
-        .target(name: "UnduhKit"),
-        .executableTarget(name: "UnduhQuApp", dependencies: ["UnduhKit"]),
-        .testTarget(name: "UnduhKitTests", dependencies: ["UnduhKit"]),
+        .target(name: "DMPlusKit"),
+        .executableTarget(name: "DMPlusApp", dependencies: ["DMPlusKit"]),
+        .testTarget(name: "DMPlusKitTests", dependencies: ["DMPlusKit"]),
     ]
 )

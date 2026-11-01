@@ -1,6 +1,6 @@
 import Foundation
 
-/// JSON persistence for the download list (~/Library/Application Support/UnduhQu/downloads.json by default).
+/// JSON persistence for the download list (~/Library/Application Support/DMPlus/downloads.json by default).
 public final class DownloadStore: @unchecked Sendable {
     private let fileURL: URL
     private let lock = NSLock()
@@ -11,7 +11,7 @@ public final class DownloadStore: @unchecked Sendable {
 
     public static func defaultFileURL() -> URL {
         let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-        return base.appendingPathComponent("UnduhQu/downloads.json")
+        return base.appendingPathComponent("DMPlus/downloads.json")
     }
 
     public func load() -> [DownloadItem] {

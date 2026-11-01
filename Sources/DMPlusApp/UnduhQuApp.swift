@@ -1,7 +1,7 @@
 import SwiftUI
 
 @main
-struct UnduhQuApp: App {
+struct DMPlusApp: App {
     @State private var model = DownloadListModel()
 
     var body: some Scene {

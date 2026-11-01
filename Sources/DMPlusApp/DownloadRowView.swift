@@ -1,5 +1,5 @@
 import SwiftUI
-import UnduhKit
+import DMPlusKit
 
 /// One row in the list. Receives plain values only, so progress updates
 /// invalidate just this row, not the whole screen.

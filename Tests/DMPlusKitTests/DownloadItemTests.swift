@@ -1,5 +1,5 @@
 import XCTest
-@testable import UnduhKit
+@testable import DMPlusKit
 
 final class DownloadItemTests: XCTestCase {
     func testProgressFraction() {
