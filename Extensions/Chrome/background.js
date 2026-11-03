@@ -1,14 +1,26 @@
-// DM+ browser integration: take over browser downloads and hand the URL
-// to DM+ via the DMPlusMsgHost native messaging host (IDM-style).
+// DM+ browser integration: hand downloads over to DM+ via the
+// DMPlusMsgHost native messaging host (IDM-style).
+//
+// SAFETY RULE: the browser's own download is cancelled ONLY after the
+// host confirms receipt. If the host is missing or rejects the
+// connection (wrong extension ID in the host manifest, host not
+// installed), the browser download is left completely alone —
+// a failed handoff must never eat the user's download.
 const HOST = "com.chulit.dmplus";
 
-function sendToDMPlus(url) {
-  if (!url || !/^https?:\/\//i.test(url)) return;
-  chrome.runtime.sendNativeMessage(HOST, { url }, (response) => {
-    // If the host is not installed, the download simply continues in the
-    // browser (we only cancel after a successful handoff below for the
-    // downloads API path, which reports errors synchronously in lastError).
-    void chrome.runtime.lastError;
+function handoff(url) {
+  return new Promise((resolve) => {
+    if (!url || !/^https?:\/\//i.test(url)) {
+      resolve(false);
+      return;
+    }
+    chrome.runtime.sendNativeMessage(HOST, { url }, (response) => {
+      if (chrome.runtime.lastError || !response || response.received !== true) {
+        resolve(false);
+      } else {
+        resolve(true);
+      }
+    });
   });
 }
 
@@ -25,20 +37,22 @@ chrome.runtime.onInstalled.addListener(() => {
   });
 });
 
-chrome.contextMenus.onClicked.addListener((info) => {
+chrome.contextMenus.onClicked.addListener(async (info) => {
   if (info.menuItemId === "dmplus-download-link" && info.linkUrl) {
-    sendToDMPlus(info.linkUrl);
+    await handoff(info.linkUrl);
   } else if (info.menuItemId === "dmplus-download-page" && info.pageUrl) {
-    sendToDMPlus(info.pageUrl);
+    await handoff(info.pageUrl);
   }
 });
 
-// Take over downloads started in the browser: hand the URL to DM+ and
-// cancel the browser's own download.
-chrome.downloads.onCreated.addListener((item) => {
+// Take over downloads started in the browser — but only cancel the
+// browser download once DM+ has confirmed it took the URL.
+chrome.downloads.onCreated.addListener(async (item) => {
   if (!item.url || !/^https?:\/\//i.test(item.url)) return;
-  sendToDMPlus(item.url);
-  chrome.downloads.cancel(item.id, () => {
-    chrome.downloads.erase({ id: item.id });
-  });
+  const ok = await handoff(item.url);
+  if (ok) {
+    chrome.downloads.cancel(item.id, () => {
+      chrome.downloads.erase({ id: item.id });
+    });
+  }
 });

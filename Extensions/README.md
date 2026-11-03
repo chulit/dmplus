@@ -22,3 +22,13 @@ Lalu di `chrome://extensions` (mode Developer): *Load unpacked* →
 pilih folder `Extensions/Chrome`, salin ID ekstensinya ke file
 `~/Library/Application Support/Google/Chrome/NativeMessagingHosts/com.chulit.dmplus.json`
 (ganti `EXTENSION_ID_HERE`), dan muat ulang ekstensi.
+
+## Troubleshooting
+
+- **Unduhan di Chrome hilang tapi tidak masuk DM+**: hampir selalu
+  karena `allowed_origins` di manifest host masih berisi
+  `EXTENSION_ID_HERE` atau ID ekstensi yang salah — Chrome menolak
+  koneksi native-nya. Samakan dengan ID di kartu ekstensi
+  `chrome://extensions`, reload ekstensinya, mulai ulang Chrome.
+- Ekstensi versi terbaru tidak membatalkan unduhan Chrome bila
+  serah-terima ke host gagal — unduhan berjalan normal di browser.
