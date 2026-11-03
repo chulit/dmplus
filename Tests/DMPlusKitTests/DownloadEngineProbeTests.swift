@@ -18,7 +18,7 @@ final class DownloadEngineProbeTests: XCTestCase {
     func testProbeThrowsClearStatusOn404() async {
         let config = URLSessionConfiguration.ephemeral
         config.protocolClasses = [NotFoundStub.self]
-        let engine = DownloadEngine(configuration: config)
+        let engine = DownloadEngine(session: URLSession(configuration: config))
         do {
             _ = try await engine.probe(URL(string: "https://example.com/uji.zip")!)
             XCTFail("probe seharusnya gagal untuk 404")
