@@ -1,5 +1,7 @@
 import SwiftUI
+import AppKit
 import DMPlusKit
+import UniformTypeIdentifiers
 
 /// Sidebar filter, mirroring IDM's Categories tree: the three status
 /// groups plus one entry per file category.
@@ -17,6 +19,8 @@ struct ContentView: View {
     @State private var detailID: DownloadItem.ID?
     @State private var showingAdd = false
     @State private var showingSettings = false
+    @State private var showingGrabber = false
+    @State private var panelController = FloatingPanelController()
 
     private var filteredItems: [DownloadItem] {
         switch sidebar ?? .all {
@@ -57,9 +61,10 @@ struct ContentView: View {
         }
         .toolbar { toolbarContent }
         .sheet(isPresented: $showingAdd) {
-            AddDownloadView { urlString, startImmediately in
-                model.add(urlString: urlString, startImmediately: startImmediately)
-            }
+            AddDownloadView(model: model)
+        }
+        .sheet(isPresented: $showingGrabber) {
+            GrabberView(model: model)
         }
         .sheet(isPresented: $showingSettings) {
             SettingsView(settings: model.settings)
@@ -140,6 +145,16 @@ struct ContentView: View {
                     detailID = ids.first
                 }
             }
+        }
+        .onDrop(of: [.text, .url], isTargeted: nil) { providers in
+            for provider in providers {
+                provider.loadObject(ofClass: NSString.self) { object, _ in
+                    if let text = object as? String {
+                        Task { @MainActor in model.add(urlString: text) }
+                    }
+                }
+            }
+            return true
         }
         .safeAreaInset(edge: .bottom) {
             HStack {
@@ -239,6 +254,35 @@ struct ContentView: View {
                 Label("Pengaturan", systemImage: "gearshape")
             }
             .help("Pengaturan koneksi & folder tujuan")
+
+            Menu {
+                Button("Site Grabber…") { showingGrabber = true }
+                Button("Panel Apung (Drop Target)") { panelController.toggle(model: model) }
+                Divider()
+                Button("Ekspor Daftar…") { exportList() }
+                Button("Impor Daftar…") { importList() }
+            } label: {
+                Label("Lainnya", systemImage: "ellipsis.circle")
+            }
+            .help("Grabber, panel apung, impor/ekspor daftar")
+        }
+    }
+
+    private func exportList() {
+        let panel = NSSavePanel()
+        panel.nameFieldStringValue = "dmplus-daftar-unduhan.json"
+        panel.allowedContentTypes = [.json]
+        if panel.runModal() == .OK, let url = panel.url {
+            try? model.exportItems(to: url)
+        }
+    }
+
+    private func importList() {
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [.json]
+        panel.allowsMultipleSelection = false
+        if panel.runModal() == .OK, let url = panel.url {
+            model.importItems(from: url)
         }
     }
 
