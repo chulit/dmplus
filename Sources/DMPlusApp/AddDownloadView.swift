@@ -1,10 +1,11 @@
-import AppKit
 import SwiftUI
+import AppKit
 
 struct AddDownloadView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var urlString = ""
-    let onAdd: (String) -> Void
+    @State private var downloadLater = false
+    let onAdd: (String, Bool) -> Void
 
     private var isValid: Bool {
         guard let url = URL(string: urlString.trimmingCharacters(in: .whitespacesAndNewlines)),
@@ -14,12 +15,13 @@ struct AddDownloadView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("Unduhan Baru")
+            Text("Tambah URL")
                 .font(.title2).bold()
             TextField("https://contoh.com/file.zip", text: $urlString)
                 .textFieldStyle(.roundedBorder)
-                .frame(width: 440)
+                .frame(width: 460)
                 .onSubmit { submit() }
+            Toggle("Unduh nanti (masuk antrian saja)", isOn: $downloadLater)
             HStack {
                 Button("Tempel dari Clipboard") {
                     if let text = NSPasteboard.general.string(forType: .string) {
@@ -29,7 +31,7 @@ struct AddDownloadView: View {
                 Spacer()
                 Button("Batal") { dismiss() }
                     .keyboardShortcut(.cancelAction)
-                Button("Unduh") { submit() }
+                Button(downloadLater ? "Tambah ke Antrian" : "Unduh Sekarang") { submit() }
                     .buttonStyle(.borderedProminent)
                     .disabled(!isValid)
                     .keyboardShortcut(.defaultAction)
@@ -40,7 +42,7 @@ struct AddDownloadView: View {
 
     private func submit() {
         guard isValid else { return }
-        onAdd(urlString)
+        onAdd(urlString, !downloadLater)
         dismiss()
     }
 }
