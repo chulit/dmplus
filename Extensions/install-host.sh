@@ -1,7 +1,12 @@
 #!/bin/bash
 # Install DMPlusMsgHost and register it with Chrome (Native Messaging).
 # Run after `swift build -c release` in the repo root.
+# Usage: ./Extensions/install-host.sh [EXTENSION_ID]
+# Pass the extension ID from chrome://extensions so allowed_origins is
+# written correctly in one go (without it, a placeholder is written and
+# Chrome will refuse the native connection until you edit the manifest).
 set -euo pipefail
+EXT_ID="${1:-EXTENSION_ID_HERE}"
 cd "$(dirname "$0")/.."
 
 BIN=".build/release/DMPlusMsgHost"
@@ -19,10 +24,16 @@ cat > "$HOSTS_DIR/com.chulit.dmplus.json" << JSON
   "description": "DM+ native messaging host",
   "path": "$DEST/DMPlusMsgHost",
   "type": "stdio",
-  "allowed_origins": ["chrome-extension://EXTENSION_ID_HERE/"]
+  "allowed_origins": ["chrome-extension://$EXT_ID/"]
 }
 JSON
 echo "Host terpasang di $DEST/DMPlusMsgHost"
 echo "Manifest host: $HOSTS_DIR/com.chulit.dmplus.json"
-echo "PENTING: ganti EXTENSION_ID_HERE dengan ID ekstensi DM+ dari chrome://extensions,"
-echo "lalu muat folder Extensions/Chrome sebagai ekstensi unpacked."
+if [ "$EXT_ID" = "EXTENSION_ID_HERE" ]; then
+  echo "PENTING: kamu belum memberi ID ekstensi. Muat folder Extensions/Chrome di"
+  echo "chrome://extensions, salin ID-nya, lalu jalankan lagi:"
+  echo "  ./Extensions/install-host.sh <ID_EKSTENSI>"
+else
+  echo "allowed_origins sudah diisi ID ekstensi: $EXT_ID"
+  echo "Muat/reload folder Extensions/Chrome di chrome://extensions, lalu mulai ulang Chrome."
+fi
