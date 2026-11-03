@@ -145,13 +145,20 @@ final class DownloadListModel {
         persist()
     }
 
+    private static func isStartable(_ state: DownloadState) -> Bool {
+        switch state {
+        case .queued, .paused, .failed: return true
+        case .downloading, .completed: return false
+        }
+    }
+
     /// Starts queued downloads (in list order) up to the simultaneous cap.
     private func pumpQueue() {
         for item in items {
             guard runningCount < settings.maxSimultaneous else { return }
             guard wantsRunning.contains(item.id),
                   tasks[item.id] == nil,
-                  item.state == .queued || item.state == .paused || item.state == .failed
+                  Self.isStartable(item.state)
             else { continue }
             setState(item.id, .downloading)
             let id = item.id
@@ -169,7 +176,7 @@ final class DownloadListModel {
     // MARK: - Engine run (with auto-retry)
 
     private func run(itemID: UUID) async {
-        guard let item = items.first(where: { $0.id == itemID }) else { return }
+        guard items.contains(where: { $0.id == itemID }) else { return }
         let policy = RetryPolicy(maxAttempts: settings.retryAttempts)
         var attempt = 0
         while true {
