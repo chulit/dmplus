@@ -4,7 +4,21 @@ Download manager macOS original bergaya IDM — lahir dari hasil reverse
 engineering installer IDM 6.43 build 16 (peta fiturnya), bukan port kode
 Tonec: semua kode di sini ditulis dari nol.
 
-## Fitur (v0.1 scaffold)
+## Antarmuka (ala IDM)
+
+- **Sidebar Kategori** — Semua Unduhan / Belum Selesai / Selesai +
+  kategori file (Video, Musik, Gambar, Dokumen, Arsip, Program),
+  seperti pohon Categories di IDM.
+- **Tabel unduhan** dengan kolom IDM: Nama File, Ukuran, Status,
+  Progres, **Sisa Waktu**, **Kecepatan**, Tanggal.
+- **Toolbar IDM** — Tambah URL, Lanjutkan, Stop, **Mulai Antrian**,
+  **Stop Semua**, Hapus, **Hapus Selesai**, Pengaturan.
+- **Jendela progres per unduhan** (klik dua kali baris): statistik
+  lengkap + **grafik kecepatan** live, seperti dialog progres IDM.
+- **Unduh Nanti** saat menambah URL (masuk antrian tanpa mulai).
+- **Pengaturan**: koneksi per unduhan (1–16) + folder tujuan.
+
+## Fitur unduhan
 
 - **Segmented download** — file dipecah ke s.d. 8 koneksi paralel (HTTP
   Range) lewat `SegmentPlanner` + `DownloadEngine`.
