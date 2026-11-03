@@ -81,19 +81,22 @@ public final class DownloadEngine: @unchecked Sendable {
                          to destination: URL,
                          probe: ProbeResult,
                          segmentCount: Int = 8,
+                         speedLimitBytesPerSecond: Int64 = 0,
                          onProgress: @escaping @Sendable (Int64) -> Void) async throws {
+        let throttle = DownloadThrottle(limitBytesPerSecond: speedLimitBytesPerSecond)
         if let total = probe.totalBytes, probe.acceptsRanges, total > 0 {
             try await downloadSegmented(url: url, to: destination, totalBytes: total,
-                                        segmentCount: segmentCount, onProgress: onProgress)
+                                        segmentCount: segmentCount, throttle: throttle,
+                                        onProgress: onProgress)
         } else {
             try await downloadSingleStream(url: url, to: destination,
                                            acceptsRanges: probe.acceptsRanges,
-                                           onProgress: onProgress)
+                                           throttle: throttle, onProgress: onProgress)
         }
     }
 
     private func downloadSegmented(url: URL, to destination: URL, totalBytes: Int64,
-                                   segmentCount: Int,
+                                   segmentCount: Int, throttle: DownloadThrottle,
                                    onProgress: @escaping @Sendable (Int64) -> Void) async throws {
         let segments = SegmentPlanner.plan(totalBytes: totalBytes, maxSegments: segmentCount)
         let fm = FileManager.default
@@ -119,7 +122,7 @@ public final class DownloadEngine: @unchecked Sendable {
                 group.addTask {
                     try await self.downloadSegment(url: url, segment: remaining,
                         partURL: Self.partURL(for: destination, segmentIndex: segment.index),
-                        appending: already > 0, counter: counter)
+                        appending: already > 0, counter: counter, throttle: throttle)
                 }
             }
             try await group.waitForAll()
@@ -147,7 +150,8 @@ public final class DownloadEngine: @unchecked Sendable {
 
     private func downloadSegment(url: URL, segment: ByteSegment, partURL: URL,
                                  appending: Bool,
-                                 counter: ProgressCounter) async throws {
+                                 counter: ProgressCounter,
+                                 throttle: DownloadThrottle) async throws {
         var request = URLRequest(url: url)
         request.setValue("bytes=\(segment.start)-\(segment.end)", forHTTPHeaderField: "Range")
         let (bytes, response) = try await session.bytes(for: request)
@@ -168,12 +172,14 @@ public final class DownloadEngine: @unchecked Sendable {
             try Task.checkCancellation()
             buffer.append(byte)
             if buffer.count >= 1 << 16 {
+                await throttle.consume(Int64(buffer.count))
                 try handle.write(contentsOf: buffer)
                 counter.add(Int64(buffer.count))
                 buffer.removeAll(keepingCapacity: true)
             }
         }
         if !buffer.isEmpty {
+            await throttle.consume(Int64(buffer.count))
             try handle.write(contentsOf: buffer)
             counter.add(Int64(buffer.count))
         }
@@ -181,6 +187,7 @@ public final class DownloadEngine: @unchecked Sendable {
     }
 
     private func downloadSingleStream(url: URL, to destination: URL, acceptsRanges: Bool,
+                                      throttle: DownloadThrottle,
                                       onProgress: @escaping @Sendable (Int64) -> Void) async throws {
         let fm = FileManager.default
         try fm.createDirectory(at: destination.deletingLastPathComponent(),
@@ -214,12 +221,14 @@ public final class DownloadEngine: @unchecked Sendable {
             try Task.checkCancellation()
             buffer.append(byte)
             if buffer.count >= 1 << 16 {
+                await throttle.consume(Int64(buffer.count))
                 try handle.write(contentsOf: buffer)
                 counter.add(Int64(buffer.count))
                 buffer.removeAll(keepingCapacity: true)
             }
         }
         if !buffer.isEmpty {
+            await throttle.consume(Int64(buffer.count))
             try handle.write(contentsOf: buffer)
             counter.add(Int64(buffer.count))
         }
@@ -252,5 +261,42 @@ final class ProgressCounter: @unchecked Sendable {
         let current = _value
         lock.unlock()
         onProgress(current)
+    }
+}
+
+
+/// Per-download speed limiter (IDM's speed limiter): a shared token
+/// window across all segment connections of one download. When the
+/// bytes moved inside the current 1-second window pass the limit,
+/// callers sleep until the window rolls over. Limit 0 = unlimited.
+final class DownloadThrottle: @unchecked Sendable {
+    private let limit: Int64
+    private let lock = NSLock()
+    private var windowStart = Date()
+    private var bytesInWindow: Int64 = 0
+
+    init(limitBytesPerSecond: Int64) {
+        limit = max(0, limitBytesPerSecond)
+    }
+
+    func consume(_ bytes: Int64) async {
+        guard limit > 0 else { return }
+        lock.lock()
+        let now = Date()
+        if now.timeIntervalSince(windowStart) >= 1 {
+            windowStart = now
+            bytesInWindow = 0
+        }
+        bytesInWindow += bytes
+        var sleepFor: TimeInterval = 0
+        if bytesInWindow >= limit {
+            sleepFor = 1 - now.timeIntervalSince(windowStart)
+            windowStart = now.addingTimeInterval(sleepFor)
+            bytesInWindow = 0
+        }
+        lock.unlock()
+        if sleepFor > 0.01 {
+            try? await Task.sleep(nanoseconds: UInt64(sleepFor * 1_000_000_000))
+        }
     }
 }
