@@ -66,7 +66,8 @@ final class DownloadListModel {
         add(url: url, startImmediately: startImmediately)
     }
 
-    func add(url: URL, fileName customName: String? = nil, startImmediately: Bool = true) {
+    func add(url: URL, fileName customName: String? = nil, startImmediately: Bool = true,
+             cookie: String? = nil, referer: String? = nil) {
         // IDM warns about duplicates; DM+ just focuses the existing entry.
         if let existing = items.first(where: { $0.url == url && $0.state != .completed }) {
             if startImmediately { start(existing) }
@@ -76,7 +77,7 @@ final class DownloadListModel {
         let fileName = (name?.isEmpty == false ? name! :
             (url.lastPathComponent.isEmpty ? (url.host ?? "download")
              : url.lastPathComponent.removingPercentEncoding ?? url.lastPathComponent))
-        let item = DownloadItem(url: url, fileName: fileName)
+        let item = DownloadItem(url: url, fileName: fileName, cookie: cookie, referer: referer)
         items.insert(item, at: 0)
         persist()
         if startImmediately { start(item) }
@@ -216,7 +217,7 @@ final class DownloadListModel {
         if let cached = probes[itemID] {
             probe = cached
         } else {
-            probe = try await engine.probe(item.url)
+            probe = try await engine.probe(item.url, cookie: item.cookie, referer: item.referer)
             probes[itemID] = probe
         }
         update(itemID) {
@@ -242,7 +243,8 @@ final class DownloadListModel {
         meters[itemID] = meter
         try await engine.download(url: item.url, to: destination, probe: probe,
                                   segmentCount: settings.maxConnections,
-                                  speedLimitBytesPerSecond: settings.speedLimitBytesPerSecond
+                                  speedLimitBytesPerSecond: settings.speedLimitBytesPerSecond,
+                                  cookie: current.cookie, referer: current.referer
         ) { [weak self] bytes in
             Task { @MainActor [weak self] in
                 guard let self else { return }
@@ -345,7 +347,11 @@ final class DownloadListModel {
                   let object = try? JSONSerialization.jsonObject(with: lineData) as? [String: Any],
                   let urlString = object["url"] as? String
             else { continue }
-            add(urlString: urlString, startImmediately: true)
+            guard let url = URL(string: urlString),
+                  let scheme = url.scheme, ["http", "https"].contains(scheme.lowercased())
+            else { continue }
+            add(url: url, startImmediately: true,
+                cookie: object["cookie"] as? String, referer: object["referer"] as? String)
         }
     }
 
