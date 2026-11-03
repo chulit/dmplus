@@ -280,23 +280,28 @@ final class DownloadThrottle: @unchecked Sendable {
     }
 
     func consume(_ bytes: Int64) async {
-        guard limit > 0 else { return }
+        let sleepFor = registerUse(bytes)
+        if sleepFor > 0.01 {
+            try? await Task.sleep(nanoseconds: UInt64(sleepFor * 1_000_000_000))
+        }
+    }
+
+    /// Synchronous bookkeeping (lock stays out of async contexts):
+    /// returns how long the caller should sleep to respect the limit.
+    private func registerUse(_ bytes: Int64) -> TimeInterval {
+        guard limit > 0 else { return 0 }
         lock.lock()
+        defer { lock.unlock() }
         let now = Date()
         if now.timeIntervalSince(windowStart) >= 1 {
             windowStart = now
             bytesInWindow = 0
         }
         bytesInWindow += bytes
-        var sleepFor: TimeInterval = 0
-        if bytesInWindow >= limit {
-            sleepFor = 1 - now.timeIntervalSince(windowStart)
-            windowStart = now.addingTimeInterval(sleepFor)
-            bytesInWindow = 0
-        }
-        lock.unlock()
-        if sleepFor > 0.01 {
-            try? await Task.sleep(nanoseconds: UInt64(sleepFor * 1_000_000_000))
-        }
+        guard bytesInWindow >= limit else { return 0 }
+        let sleepFor = 1 - now.timeIntervalSince(windowStart)
+        windowStart = now.addingTimeInterval(sleepFor)
+        bytesInWindow = 0
+        return sleepFor
     }
 }
