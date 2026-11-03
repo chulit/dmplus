@@ -7,10 +7,12 @@ let package = Package(
     products: [
         .library(name: "DMPlusKit", targets: ["DMPlusKit"]),
         .executable(name: "DMPlus", targets: ["DMPlusApp"]),
+        .executable(name: "DMPlusMsgHost", targets: ["DMPlusMsgHost"]),
     ],
     targets: [
         .target(name: "DMPlusKit"),
         .executableTarget(name: "DMPlusApp", dependencies: ["DMPlusKit"]),
+        .executableTarget(name: "DMPlusMsgHost"),
         .testTarget(name: "DMPlusKitTests", dependencies: ["DMPlusKit"]),
     ]
 )

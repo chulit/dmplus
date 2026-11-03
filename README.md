@@ -54,7 +54,18 @@ open dist/DMPlus.app
 
 Butuh macOS 14+ dan Xcode/Swift 5.9+.
 
-## Roadmap
+## Fitur lengkap (paritas IDM)
 
-- Fase 2: batas kecepatan global, antrian terjadwal, drag & drop URL.
-- Fase 3: integrasi browser (ekstensi + native messaging, pola IDMMsgHost).
+- Batas kecepatan per unduhan (speed limiter) di Pengaturan.
+- Antrian terjadwal: maks unduhan bersamaan + **Penjadwal** jam mulai/stop.
+- **Auto-retry** dengan backoff saat unduhan gagal.
+- **Site Grabber**: ambil semua tautan unduhan dari sebuah halaman web.
+- **Batch download**: URL berpola `*` mengembang jadi seri bernomor.
+- **Panel apung** drop target + drag & drop URL ke jendela utama.
+- **Monitor clipboard**: URL yang disalin otomatis diunduh (opsional).
+- **Impor/ekspor** daftar unduhan (JSON, padanan .ef2-nya IDM).
+- Duplikat tidak menimpa file: nama menjadi `file (1).zip`, dst.
+- Subfolder per kategori, notifikasi + suara saat selesai, dan kolom
+  program pemeriksa (antivirus) yang dijalankan setelah unduhan selesai.
+- **Integrasi browser**: ekstensi Chrome + `DMPlusMsgHost`
+  (Native Messaging, pola IDMMsgHost) — lihat `Extensions/README.md`.
