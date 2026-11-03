@@ -7,10 +7,21 @@ public struct ProbeResult: Equatable, Sendable {
     public var suggestedFileName: String
 }
 
-public enum DownloadEngineError: Error, Equatable {
+public enum DownloadEngineError: Error, Equatable, LocalizedError {
     case httpStatus(Int)
     case sizeMismatch(expected: Int64, actual: Int64)
     case rangeNotHonored
+
+    public var errorDescription: String? {
+        switch self {
+        case .httpStatus(let code):
+            return "Server menjawab HTTP \(code)"
+        case .sizeMismatch(let expected, let actual):
+            return "Ukuran file tidak cocok (diharapkan \(expected) byte, diterima \(actual) byte)"
+        case .rangeNotHonored:
+            return "Server tidak menghormati permintaan Range"
+        }
+    }
 }
 
 /// Segmented download engine: the core of DMPlus.
@@ -51,6 +62,9 @@ public final class DownloadEngine: @unchecked Sendable {
         guard let http = response as? HTTPURLResponse else {
             return ProbeResult(totalBytes: nil, acceptsRanges: false,
                                suggestedFileName: Self.fileName(for: url, response: nil))
+        }
+        if http.statusCode >= 400 {
+            throw DownloadEngineError.httpStatus(http.statusCode)
         }
         if http.statusCode == 206,
            let range = http.value(forHTTPHeaderField: "Content-Range"),
