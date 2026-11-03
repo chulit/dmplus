@@ -124,8 +124,8 @@ public final class DownloadEngine: @unchecked Sendable {
     }
 
     private func downloadSegmented(url: URL, to destination: URL, totalBytes: Int64,
-                                   cookie: String? = nil, referer: String? = nil,
                                    segmentCount: Int, throttle: DownloadThrottle,
+                                   cookie: String? = nil, referer: String? = nil,
                                    onProgress: @escaping @Sendable (Int64) -> Void) async throws {
         let segments = SegmentPlanner.plan(totalBytes: totalBytes, maxSegments: segmentCount)
         let fm = FileManager.default
