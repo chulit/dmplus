@@ -2,7 +2,14 @@
   "manifest_version": 3,
   "name": "DM+ Download Manager",
   "version": "1.0.0",
-  "description": "Send downloads to DM+, the macOS download manager — like IDM's browser integration.",
-  "permissions": ["downloads", "nativeMessaging", "contextMenus"],
-  "background": { "service_worker": "background.js" }
+  "description": "Send downloads to DM+, the macOS download manager \u2014 like IDM's browser integration.",
+  "permissions": [
+    "downloads",
+    "nativeMessaging",
+    "contextMenus",
+    "cookies"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  }
 }

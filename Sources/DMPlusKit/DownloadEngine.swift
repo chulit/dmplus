@@ -41,10 +41,20 @@ public final class DownloadEngine: @unchecked Sendable {
         self.session = session
     }
 
+    /// A request carrying the forwarded browser session, when present:
+    /// many sites only serve the file to the session that clicked the
+    /// link and bounce everyone else to an HTML page.
+    private func makeRequest(_ url: URL, cookie: String?, referer: String?) -> URLRequest {
+        var request = URLRequest(url: url)
+        if let cookie, !cookie.isEmpty { request.setValue(cookie, forHTTPHeaderField: "Cookie") }
+        if let referer, !referer.isEmpty { request.setValue(referer, forHTTPHeaderField: "Referer") }
+        return request
+    }
+
     // MARK: - Probe
 
-    public func probe(_ url: URL) async throws -> ProbeResult {
-        var head = URLRequest(url: url)
+    public func probe(_ url: URL, cookie: String? = nil, referer: String? = nil) async throws -> ProbeResult {
+        var head = makeRequest(url, cookie: cookie, referer: referer)
         head.httpMethod = "HEAD"
         if let (data, response) = try? await session.data(for: head),
            let http = response as? HTTPURLResponse, http.statusCode == 200 {
@@ -56,7 +66,7 @@ public final class DownloadEngine: @unchecked Sendable {
                                suggestedFileName: Self.fileName(for: url, response: http))
         }
         // Fallback: ask for a single byte and read Content-Range.
-        var get = URLRequest(url: url)
+        var get = makeRequest(url, cookie: cookie, referer: referer)
         get.setValue("bytes=0-0", forHTTPHeaderField: "Range")
         let (_, response) = try await session.data(for: get)
         guard let http = response as? HTTPURLResponse else {
@@ -96,20 +106,25 @@ public final class DownloadEngine: @unchecked Sendable {
                          probe: ProbeResult,
                          segmentCount: Int = 8,
                          speedLimitBytesPerSecond: Int64 = 0,
+                         cookie: String? = nil,
+                         referer: String? = nil,
                          onProgress: @escaping @Sendable (Int64) -> Void) async throws {
         let throttle = DownloadThrottle(limitBytesPerSecond: speedLimitBytesPerSecond)
         if let total = probe.totalBytes, probe.acceptsRanges, total > 0 {
             try await downloadSegmented(url: url, to: destination, totalBytes: total,
                                         segmentCount: segmentCount, throttle: throttle,
+                                        cookie: cookie, referer: referer,
                                         onProgress: onProgress)
         } else {
             try await downloadSingleStream(url: url, to: destination,
                                            acceptsRanges: probe.acceptsRanges,
-                                           throttle: throttle, onProgress: onProgress)
+                                           throttle: throttle, cookie: cookie, referer: referer,
+                                           onProgress: onProgress)
         }
     }
 
     private func downloadSegmented(url: URL, to destination: URL, totalBytes: Int64,
+                                   cookie: String? = nil, referer: String? = nil,
                                    segmentCount: Int, throttle: DownloadThrottle,
                                    onProgress: @escaping @Sendable (Int64) -> Void) async throws {
         let segments = SegmentPlanner.plan(totalBytes: totalBytes, maxSegments: segmentCount)
@@ -136,7 +151,8 @@ public final class DownloadEngine: @unchecked Sendable {
                 group.addTask {
                     try await self.downloadSegment(url: url, segment: remaining,
                         partURL: Self.partURL(for: destination, segmentIndex: segment.index),
-                        appending: already > 0, counter: counter, throttle: throttle)
+                        appending: already > 0, counter: counter, throttle: throttle,
+                        cookie: cookie, referer: referer)
                 }
             }
             try await group.waitForAll()
@@ -165,8 +181,9 @@ public final class DownloadEngine: @unchecked Sendable {
     private func downloadSegment(url: URL, segment: ByteSegment, partURL: URL,
                                  appending: Bool,
                                  counter: ProgressCounter,
-                                 throttle: DownloadThrottle) async throws {
-        var request = URLRequest(url: url)
+                                 throttle: DownloadThrottle,
+                                 cookie: String? = nil, referer: String? = nil) async throws {
+        var request = makeRequest(url, cookie: cookie, referer: referer)
         request.setValue("bytes=\(segment.start)-\(segment.end)", forHTTPHeaderField: "Range")
         let (bytes, response) = try await session.bytes(for: request)
         guard let http = response as? HTTPURLResponse else {
@@ -202,6 +219,7 @@ public final class DownloadEngine: @unchecked Sendable {
 
     private func downloadSingleStream(url: URL, to destination: URL, acceptsRanges: Bool,
                                       throttle: DownloadThrottle,
+                                      cookie: String? = nil, referer: String? = nil,
                                       onProgress: @escaping @Sendable (Int64) -> Void) async throws {
         let fm = FileManager.default
         try fm.createDirectory(at: destination.deletingLastPathComponent(),
@@ -211,7 +229,7 @@ public final class DownloadEngine: @unchecked Sendable {
         if acceptsRanges, let size = try? fm.attributesOfItem(atPath: part.path)[.size] as? Int64 {
             existing = size
         }
-        var request = URLRequest(url: url)
+        var request = makeRequest(url, cookie: cookie, referer: referer)
         if existing > 0 { request.setValue("bytes=\(existing)-", forHTTPHeaderField: "Range") }
         let (bytes, response) = try await session.bytes(for: request)
         guard let http = response as? HTTPURLResponse else {

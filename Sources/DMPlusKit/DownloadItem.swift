@@ -22,10 +22,16 @@ public struct DownloadItem: Codable, Equatable, Identifiable, Sendable {
     public var state: DownloadState
     public var category: FileCategory
     public var createdAt: Date
+    /// Browser session forwarded by the extension: sites that only serve
+    /// the file to the session that clicked need these, or the app gets
+    /// an HTML page back instead of the file.
+    public var cookie: String?
+    public var referer: String?
 
     public init(id: UUID = UUID(), url: URL, fileName: String,
                 totalBytes: Int64? = nil, downloadedBytes: Int64 = 0,
-                state: DownloadState = .queued, createdAt: Date = Date()) {
+                state: DownloadState = .queued, createdAt: Date = Date(),
+                cookie: String? = nil, referer: String? = nil) {
         self.id = id
         self.url = url
         self.fileName = fileName
@@ -34,6 +40,8 @@ public struct DownloadItem: Codable, Equatable, Identifiable, Sendable {
         self.state = state
         self.category = FileCategory.classify(fileName: fileName)
         self.createdAt = createdAt
+        self.cookie = cookie
+        self.referer = referer
     }
 
     /// 0...1 when the total is known, `nil` when it is not.

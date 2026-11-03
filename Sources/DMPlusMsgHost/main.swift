@@ -3,7 +3,8 @@ import Foundation
 // DMPlusMsgHost — Chrome Native Messaging host, the counterpart of IDM's
 // IDMMsgHost.exe. Chrome starts this process and speaks length-prefixed
 // JSON over stdio. Every {"url": "..."} message is appended as one line
-// to Application Support/DMPlus/inbox.jsonl; the DM+ app polls that file
+// to Application Support/DMPlus/inbox.jsonl (plus the browser session
+// cookie/referer when the extension sends them); the DM+ app polls it
 // (see DownloadListModel.inboxTick) and starts the download.
 
 let inboxURL = FileManager.default.urls(
@@ -38,7 +39,12 @@ while let header = readExactly(4) {
           let object = try? JSONSerialization.jsonObject(with: body) as? [String: Any],
           let url = object["url"] as? String
     else { break }
-    let line = "{\"url\": \(jsonString(url))}\n"
+    var fields: [String: Any] = ["url": url]
+    if let cookie = object["cookie"] as? String, !cookie.isEmpty { fields["cookie"] = cookie }
+    if let referer = object["referer"] as? String, !referer.isEmpty { fields["referer"] = referer }
+    guard let lineData = try? JSONSerialization.data(withJSONObject: fields),
+          var line = String(data: lineData, encoding: .utf8) else { break }
+    line += "\n"
     if let handle = try? FileHandle(forWritingTo: inboxURL) {
         _ = try? handle.seekToEnd()
         handle.write(line.data(using: .utf8)!)
