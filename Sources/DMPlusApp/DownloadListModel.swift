@@ -1,34 +1,52 @@
 import Foundation
 import DMPlusKit
 
-/// Owns the download list, the running tasks, and persistence.
-/// Views read only what they need; all mutation happens here.
+/// Owns the download list, running tasks, live speeds, ETAs, speed
+/// histories, and persistence. Views read only what they need.
 @MainActor
 @Observable
 final class DownloadListModel {
     var items: [DownloadItem] = []
-    /// Live speeds (bytes/sec) keyed by item id; 0 when not downloading.
     var speeds: [UUID: Double] = [:]
+    var histories: [UUID: SpeedHistory] = [:]
+
+    let settings = AppSettings()
 
     private let engine = DownloadEngine()
     private let store = DownloadStore(fileURL: DownloadStore.defaultFileURL())
-    private let downloadsDirectory: URL
     private var tasks: [UUID: Task<Void, Never>] = [:]
     private var probes: [UUID: ProbeResult] = [:]
     private var meters: [UUID: SpeedMeter] = [:]
+    private var lastSampleAt: [UUID: Date] = [:]
 
     init() {
-        downloadsDirectory = FileManager.default.urls(
-            for: .downloadsDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("DMPlus", isDirectory: true)
         items = store.load()
     }
 
+    // MARK: - Derived values for the table
+
     func speed(for item: DownloadItem) -> Double { speeds[item.id] ?? 0 }
+
+    func eta(for item: DownloadItem) -> TimeInterval? {
+        guard item.state == .downloading else { return nil }
+        return ETACalculator.remainingSeconds(
+            totalBytes: item.totalBytes, downloadedBytes: item.downloadedBytes,
+            bytesPerSecond: speed(for: item))
+    }
+
+    func history(for item: DownloadItem) -> SpeedHistory {
+        histories[item.id] ?? SpeedHistory()
+    }
+
+    func destinationURL(for item: DownloadItem) -> URL {
+        settings.downloadsFolder.appendingPathComponent(item.fileName)
+    }
+
+    var isDownloading: Bool { items.contains { $0.state == .downloading } }
 
     // MARK: - Intents
 
-    func add(urlString: String) {
+    func add(urlString: String, startImmediately: Bool = true) {
         guard let url = URL(string: urlString.trimmingCharacters(in: .whitespacesAndNewlines)),
               let scheme = url.scheme, ["http", "https"].contains(scheme.lowercased())
         else { return }
@@ -37,7 +55,7 @@ final class DownloadListModel {
         let item = DownloadItem(url: url, fileName: name)
         items.insert(item, at: 0)
         persist()
-        start(item)
+        if startImmediately { start(item) }
     }
 
     func start(_ item: DownloadItem) {
@@ -57,10 +75,40 @@ final class DownloadListModel {
         persist()
     }
 
+    func toggle(_ item: DownloadItem) {
+        switch item.state {
+        case .downloading: pause(item)
+        case .paused, .queued, .failed: start(item)
+        case .completed: break
+        }
+    }
+
+    /// IDM's "Start Queue": begin everything queued or paused.
+    func startQueue() {
+        for item in items where item.state == .queued || item.state == .paused {
+            start(item)
+        }
+    }
+
+    /// IDM's "Stop All".
+    func stopAll() {
+        for item in items where item.state == .downloading {
+            pause(item)
+        }
+    }
+
     func remove(_ item: DownloadItem) {
         tasks[item.id]?.cancel()
         tasks[item.id] = nil
         items.removeAll { $0.id == item.id }
+        speeds[item.id] = nil
+        histories[item.id] = nil
+        persist()
+    }
+
+    /// IDM's "Delete All Completed" (the broom button).
+    func deleteCompleted() {
+        items.removeAll { $0.state == .completed }
         persist()
     }
 
@@ -83,18 +131,26 @@ final class DownloadListModel {
                     $0.category = FileCategory.classify(fileName: probe.suggestedFileName)
                 }
             }
-            let destination = downloadsDirectory.appendingPathComponent(
-                items.first(where: { $0.id == itemID })?.fileName ?? item.fileName)
+            let current = items.first(where: { $0.id == itemID }) ?? item
+            let destination = destinationURL(for: current)
             var meter = SpeedMeter()
             meters[itemID] = meter
             try await engine.download(url: item.url, to: destination, probe: probe,
-                                      segmentCount: 8) { [weak self] bytes in
+                                      segmentCount: settings.maxConnections) { [weak self] bytes in
                 Task { @MainActor [weak self] in
                     guard let self else { return }
                     self.update(itemID) { $0.downloadedBytes = bytes }
                     meter.record(bytes: bytes)
                     self.meters[itemID] = meter
-                    self.speeds[itemID] = meter.speed()
+                    let speed = meter.speed()
+                    self.speeds[itemID] = speed
+                    let now = Date()
+                    if now.timeIntervalSince(self.lastSampleAt[itemID] ?? .distantPast) >= 0.5 {
+                        self.lastSampleAt[itemID] = now
+                        var history = self.histories[itemID] ?? SpeedHistory()
+                        history.append(speed)
+                        self.histories[itemID] = history
+                    }
                 }
             }
             speeds[itemID] = 0

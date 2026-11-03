@@ -7,7 +7,7 @@ struct DMPlusApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView(model: model)
-                .frame(minWidth: 560, minHeight: 360)
+                .frame(minWidth: 860, minHeight: 440)
         }
         .windowResizability(.contentMinSize)
         .commands {
